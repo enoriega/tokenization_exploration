@@ -14,6 +14,7 @@ def train_pubmed_tokenizer(data_dir:str | Path):
     dataset = build_dataset(*Path(data_dir).absolute().glob("*.gz"))
     tokenizer = Tokenizer(models.BPE())
     tokenizer.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
+    tokenizer.decoder = decoders.ByteLevel()
     trainer = trainers.BpeTrainer(vocab_size=50368, special_tokens=["<|endoftext|>"])
     tokenizer.train_from_iterator(get_training_corpus(dataset), trainer=trainer)
     return tokenizer

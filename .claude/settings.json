@@ -3,7 +3,11 @@
     "allow": [
       "Bash(uv add *)",
       "Bash(uv run python -c ' *)",
-      "Bash(uv run *)"
+      "Bash(uv run *)",
+      "Read(//private/tmp/**)",
+      "Bash(uv --project /Users/enoriega/github/tokenization_exploration run python /Users/enoriega/github/tokenization_exploration/save_for_autotokenizer.py /Users/enoriega/github/tokenization_exploration/my_tokenizer)",
+      "Read(//private/tmp/my_tokenizer_pretrained/**)",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }
