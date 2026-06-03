@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Token Visualizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #080a10;
+      --panel:     #0d1119;
+      --panel2:    #131a26;
+      --border:    #1c2840;
+      --text:      #c4d4ea;
+      --muted:     #506070;
+      --accent:    #3d9eff;
+
+      --t0: rgba(255, 190, 55,  0.38);
+      --t1: rgba(46,  210, 182, 0.38);
+      --t2: rgba(172, 90,  255, 0.38);
+      --t3: rgba(255, 75,  120, 0.38);
+      --t4: rgba(62,  220, 105, 0.38);
+      --t5: rgba(70,  152, 255, 0.38);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+
+    body {
+      background-color: var(--bg);
+      background-image:
+        linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+      background-size: 40px 40px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      padding: 52px 44px;
+      min-height: 100vh;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 90% 60% at 50% -10%, rgba(61,158,255,0.055) 0%, transparent 65%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ── */
+    header { margin-bottom: 36px; }
+
+    .eyebrow {
+      font-size: 10px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--accent);
+      opacity: 0.75;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      font-family: 'Libre Baskerville', Georgia, serif;
+      font-size: 38px;
+      font-weight: 400;
+      font-style: italic;
+      color: var(--text);
+      letter-spacing: -0.025em;
+      line-height: 1;
+      margin-bottom: 24px;
+    }
+    h1 strong { font-style: normal; font-weight: 700; }
+
+    /* ── Tokenizer switcher ── */
+    .switcher-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .switcher-label {
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--muted);
+      opacity: 0.6;
+    }
+
+    .switcher {
+      display: inline-flex;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .sw-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      padding: 9px 16px;
+      border-radius: 7px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      transition: background 0.18s, opacity 0.18s;
+      min-width: 220px;
+      position: relative;
+      color: var(--muted);
+      text-align: left;
+    }
+
+    .sw-btn:hover:not(.active):not(:disabled) {
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+    }
+
+    .sw-btn.active {
+      background: var(--panel);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.4), inset 0 0 0 1px var(--border);
+      color: var(--text);
+    }
+
+    .sw-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+
+    .sw-btn-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      letter-spacing: 0.01em;
+    }
+
+    .sw-btn.active .sw-btn-name { color: var(--text); }
+
+    .sw-btn-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+
+    /* Loading spinner inside button */
+    .btn-spinner {
+      display: none;
+      width: 11px; height: 11px;
+      border: 1.5px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      flex-shrink: 0;
+    }
+    .sw-btn.loading .btn-spinner { display: block; }
+
+    /* Status dot for loaded/unloaded */
+    .btn-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 1.5px solid var(--muted);
+      background: transparent;
+      transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+    .sw-btn.loaded .btn-dot,
+    .sw-btn.active .btn-dot {
+      background: #3edc69;
+      border-color: #3edc69;
+      box-shadow: 0 0 6px rgba(62,220,105,0.55);
+    }
+    .sw-btn.loading .btn-dot { display: none; }
+
+    .sw-divider {
+      width: 1px;
+      background: var(--border);
+      margin: 4px 0;
+      flex-shrink: 0;
+    }
+
+    /* ── Status bar ── */
+    #status-bar {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 12px 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 7px;
+      margin-bottom: 28px;
+      font-size: 12px;
+      color: var(--muted);
+      transition: border-color 0.3s, background 0.3s;
+    }
+    #status-bar.ready  { border-left-color: #3edc69; background: rgba(62,220,105,0.04); }
+    #status-bar.error  { border-left-color: #ff4f4f; background: rgba(255,79,79,0.04); }
+
+    .spin-ring {
+      width: 15px; height: 15px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .ok-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: #3edc69;
+      box-shadow: 0 0 8px rgba(62,220,105,0.6);
+      flex-shrink: 0;
+    }
+    .err-x { font-size: 14px; line-height: 1; color: #ff4f4f; flex-shrink: 0; }
+
+    /* ── Textarea ── */
+    .section-label {
+      display: block;
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 132px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 15px 18px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      line-height: 1.75;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    textarea:focus {
+      border-color: rgba(61,158,255,0.45);
+      box-shadow: 0 0 0 3px rgba(61,158,255,0.07);
+    }
+    textarea::placeholder { color: var(--muted); opacity: 0.45; }
+    textarea:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ── Stats ── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      overflow: hidden;
+      margin-top: 12px;
+      background: var(--panel);
+    }
+    .stat {
+      padding: 11px 16px;
+      border-right: 1px solid var(--border);
+      text-align: center;
+    }
+    .stat:last-child { border-right: none; }
+    .stat-lbl {
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      opacity: 0.65;
+      margin-bottom: 4px;
+    }
+    .stat-val {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .input-section { margin-bottom: 28px; }
+
+    /* ── Viz panel ── */
+    .viz-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .viz-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 18px;
+      background: var(--panel2);
+      border-bottom: 1px solid var(--border);
+    }
+    .viz-hdr-lbl {
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    #viz-count { font-size: 11px; color: var(--muted); }
+    #viz-count b { color: var(--accent); font-weight: 500; }
+
+    .viz-body {
+      padding: 20px 18px;
+      min-height: 88px;
+      font-size: 15px;
+      line-height: 2.0;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .hint {
+      color: var(--muted);
+      opacity: 0.38;
+      font-size: 13px;
+      font-style: italic;
+    }
+
+    /* ── Token spans ── */
+    .tk {
+      border-radius: 3px;
+      position: relative;
+      cursor: default;
+      transition: filter 0.1s;
+      display: inline;
+    }
+    .tk:hover { filter: brightness(1.55) saturate(1.15); }
+
+    .tk::before {
+      content: attr(data-t);
+      position: absolute;
+      bottom: calc(100% + 5px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #18253a;
+      color: #8ab8d8;
+      border: 1px solid #263850;
+      border-radius: 5px;
+      padding: 4px 9px;
+      font-size: 11px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.12s;
+      z-index: 100;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.55);
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tk:hover::before { opacity: 1; }
+
+    .c0 { background: var(--t0); }
+    .c1 { background: var(--t1); }
+    .c2 { background: var(--t2); }
+    .c3 { background: var(--t3); }
+    .c4 { background: var(--t4); }
+    .c5 { background: var(--t5); }
+
+    /* ── Palette legend ── */
+    .palette {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-top: 1px solid var(--border);
+      background: var(--panel2);
+    }
+    .palette-lbl {
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      opacity: 0.5;
+      margin-right: 4px;
+    }
+    .sw { width: 22px; height: 9px; border-radius: 2px; }
+    .sw.c0 { background: var(--t0); }
+    .sw.c1 { background: var(--t1); }
+    .sw.c2 { background: var(--t2); }
+    .sw.c3 { background: var(--t3); }
+    .sw.c4 { background: var(--t4); }
+    .sw.c5 { background: var(--t5); }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">BPE Token Visualizer</p>
+    <h1><strong>Token</strong> <em>Explorer</em></h1>
+
+    <div class="switcher-wrap">
+      <span class="switcher-label">Active Tokenizer</span>
+      <div class="switcher" role="group" aria-label="Tokenizer selection">
+        <button class="sw-btn active" id="btn-modern" data-key="modern">
+          <span class="sw-btn-name">
+            <span class="btn-dot"></span>
+            <span class="btn-spinner"></span>
+            ModernBERT
+          </span>
+          <span class="sw-btn-sub">answerdotai/ModernBERT-base</span>
+        </button>
+        <div class="sw-divider"></div>
+        <button class="sw-btn" id="btn-medline" data-key="medline">
+          <span class="sw-btn-name">
+            <span class="btn-dot"></span>
+            <span class="btn-spinner"></span>
+            Medline BPE
+          </span>
+          <span class="sw-btn-sub">gyorilab/bpe_medline</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div id="status-bar">
+    <div id="status-icon"><div class="spin-ring"></div></div>
+    <span id="status-text">Loading ModernBERT tokenizer — downloading vocabulary (first load may take a moment)…</span>
+  </div>
+
+  <div class="input-section">
+    <span class="section-label">Input Text</span>
+    <textarea id="input" placeholder="Type or paste text here to visualize its tokens…" disabled></textarea>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-lbl">Tokens</div>
+        <div class="stat-val" id="s-tok">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Characters</div>
+        <div class="stat-val" id="s-chr">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Chars / Token</div>
+        <div class="stat-val" id="s-rat">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="viz-panel">
+    <div class="viz-hdr">
+      <span class="viz-hdr-lbl">Visualization</span>
+      <span id="viz-count">—</span>
+    </div>
+    <div class="viz-body" id="viz-body">
+      <span class="hint">Token visualization will appear here as you type.</span>
+    </div>
+    <div class="palette">
+      <span class="palette-lbl">Colors</span>
+      <div class="sw c0"></div>
+      <div class="sw c1"></div>
+      <div class="sw c2"></div>
+      <div class="sw c3"></div>
+      <div class="sw c4"></div>
+      <div class="sw c5"></div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+import { AutoTokenizer } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
+
+const _fetch = globalThis.fetch.bind(globalThis);
+
+// Fix BPE tokenizers whose merges are [["a","b"],...] instead of ["a b",...]
+globalThis.fetch = async function patchedFetch(url, ...args) {
+  const res = await _fetch(url, ...args);
+  if (typeof url === 'string' && url.includes('tokenizer.json')) {
+    try {
+      const text = await res.clone().text();
+      const data = JSON.parse(text);
+      if (Array.isArray(data?.model?.merges) && Array.isArray(data.model.merges[0])) {
+        data.model.merges = data.model.merges.map(([a, b]) => `${a} ${b}`);
+        return new Response(JSON.stringify(data), {
+          status: res.status,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    } catch { /* not JSON or already correct format */ }
+  }
+  return res;
+};
+
+const N = 6;
+
+// Cache loaded tokenizers so switching back is instant
+const cache = {};
+let activeTok = null;
+let activeKey = null; // null until first load completes
+let timer = null;
+let switching = false;
+
+const bar     = document.getElementById('status-bar');
+const icon    = document.getElementById('status-icon');
+const stText  = document.getElementById('status-text');
+const inp     = document.getElementById('input');
+const vizBody = document.getElementById('viz-body');
+const vcnt    = document.getElementById('viz-count');
+const sTok    = document.getElementById('s-tok');
+const sChr    = document.getElementById('s-chr');
+const sRat    = document.getElementById('s-rat');
+const btnModern  = document.getElementById('btn-modern');
+const btnMedline = document.getElementById('btn-medline');
+
+// ── Status bar helpers ─────────────────────────────────────────────────────
+
+function setStatus(state, msg) {
+  bar.className = state;
+  icon.innerHTML =
+    state === 'ready' ? '<div class="ok-dot"></div>' :
+    state === 'error' ? '<span class="err-x">✕</span>' :
+                        '<div class="spin-ring"></div>';
+  stText.textContent = msg;
+}
+
+// ── Button state helpers ───────────────────────────────────────────────────
+
+const ALL_BTNS = { modern: btnModern, medline: btnMedline };
+
+function setBtnLoading(btn, yes) {
+  btn.classList.toggle('loading', yes);
+  btn.disabled = yes;
+}
+
+function markLoaded(key) {
+  ALL_BTNS[key].classList.add('loaded');
+}
+
+function setActiveBtn(key) {
+  for (const [k, btn] of Object.entries(ALL_BTNS)) btn.classList.toggle('active', k === key);
+}
+
+// ── Tokenizer loading ──────────────────────────────────────────────────────
+
+const CONFIGS = {
+  modern: {
+    label: 'ModernBERT',
+    load: () => AutoTokenizer.from_pretrained('answerdotai/ModernBERT-base'),
+  },
+  medline: {
+    label: 'Medline BPE',
+    load: () => AutoTokenizer.from_pretrained('gyorilab/bpe_medline'),
+  },
+};
+
+async function loadTokenizer(key) {
+  if (cache[key]) return cache[key]; // already loaded
+  const cfg = CONFIGS[key];
+  const btn = ALL_BTNS[key];
+  setBtnLoading(btn, true);
+  setStatus('loading', `Loading ${cfg.label} tokenizer…`);
+  try {
+    cache[key] = await cfg.load();
+    markLoaded(key);
+    return cache[key];
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
+async function switchTo(key) {
+  if (switching || (key === activeKey && activeTok)) return;
+  switching = true;
+
+  // Disable all buttons while switching
+  for (const btn of Object.values(ALL_BTNS)) btn.disabled = true;
+
+  try {
+    const tok = await loadTokenizer(key);
+    activeTok = tok;
+    activeKey = key;
+    setActiveBtn(key);
+    setStatus('ready', `${CONFIGS[key].label} ready — start typing to visualize tokens`);
+    inp.disabled = false;
+    // Re-tokenize current text with new tokenizer
+    if (inp.value) tokenize(inp.value);
+  } catch (e) {
+    setStatus('error', `Failed to load ${CONFIGS[key].label}: ${e.message}`);
+    console.error(e);
+  } finally {
+    for (const btn of Object.values(ALL_BTNS)) btn.disabled = false;
+    switching = false;
+  }
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function render(text, offsets, tokStrs) {
+  if (!text || !tokStrs.length) {
+    vizBody.innerHTML = '<span class="hint">Token visualization will appear here as you type.</span>';
+    vcnt.innerHTML = '—'; sTok.textContent = '—'; sChr.textContent = '—'; sRat.textContent = '—';
+    return;
+  }
+
+  const charTok = new Int32Array(text.length).fill(-1);
+  for (let i = 0; i < offsets.length; i++) {
+    const [s, e] = offsets[i];
+    for (let c = s; c < e && c < text.length; c++) charTok[c] = i;
+  }
+
+  const colorOf = new Uint8Array(tokStrs.length);
+  let prev = N;
+  for (let i = 0; i < tokStrs.length; i++) {
+    let c = i % N;
+    if (c === prev) c = (c + 1) % N;
+    colorOf[i] = c;
+    prev = c;
+  }
+
+  let html = '';
+  let i = 0;
+  while (i < text.length) {
+    const ti = charTok[i];
+    if (ti === -1) {
+      html += esc(text[i]);
+      i++;
+    } else {
+      let j = i;
+      while (j < text.length && charTok[j] === ti) j++;
+      const slice = text.slice(i, j);
+      const raw = tokStrs[ti] ?? '';
+      const label = raw.replace(/Ġ/g,'·').replace(/▁/g,'·').replace(/Ċ/g,'↵').replace(/\n/g,'↵');
+      html += `<span class="tk c${colorOf[ti]}" data-t="${esc(label)}">${esc(slice)}</span>`;
+      i = j;
+    }
+  }
+
+  vizBody.innerHTML = html;
+  const n = tokStrs.length;
+  vcnt.innerHTML = `<b>${n}</b> token${n !== 1 ? 's' : ''}`;
+  sTok.textContent = n;
+  sChr.textContent = text.length;
+  sRat.textContent = n > 0 ? (text.length / n).toFixed(2) : '—';
+}
+
+// ── Tokenize ───────────────────────────────────────────────────────────────
+
+async function tokenize(text) {
+  if (!activeTok || !text) { render('', [], []); return; }
+
+  try {
+    const tok = activeTok; // capture in case user switches mid-flight
+    const out = await tok(text, {
+      return_tensors: false,
+      add_special_tokens: false,
+      return_offsets_mapping: true,
+    });
+
+    if (tok !== activeTok) return; // tokenizer swapped while we were running
+
+    const ids = Array.from(out.input_ids?.data ?? out.input_ids);
+
+    let offsets = null;
+    if (out.offset_mapping) {
+      const raw = out.offset_mapping?.data ?? out.offset_mapping;
+      if (raw && typeof raw[0] === 'number') {
+        offsets = Array.from({ length: ids.length }, (_, i) => [raw[i * 2], raw[i * 2 + 1]]);
+      } else if (raw) {
+        offsets = Array.from(raw);
+      }
+    }
+    if (!offsets) offsets = fallbackOffsets(tok, text, ids);
+
+    let tokStrs;
+    try { tokStrs = tok.convert_ids_to_tokens(ids); } catch {
+      try { tokStrs = tok.model?.convert_ids_to_tokens?.(ids); } catch { tokStrs = null; }
+    }
+    if (!tokStrs) {
+      tokStrs = ids.map(id => {
+        try { return tok.decode([id], { skip_special_tokens: false }); }
+        catch { return `[${id}]`; }
+      });
+    }
+
+    render(text, offsets, tokStrs);
+  } catch (e) {
+    console.error('Tokenization error:', e);
+  }
+}
+
+function fallbackOffsets(tok, text, ids) {
+  const offsets = [];
+  let pos = 0;
+  for (const id of ids) {
+    let decoded = '';
+    try { decoded = tok.decode([id], { skip_special_tokens: false }); } catch {}
+    const clean = decoded.replace(/^[Ġ▁]/, ' ');
+    if (!clean) { offsets.push([pos, pos]); continue; }
+    const idx = text.indexOf(clean, Math.max(0, pos - 1));
+    if (idx !== -1 && idx <= pos + 2) {
+      offsets.push([idx, idx + clean.length]);
+      pos = idx + clean.length;
+    } else {
+      offsets.push([pos, pos]);
+    }
+  }
+  return offsets;
+}
+
+// ── Wire up ────────────────────────────────────────────────────────────────
+
+inp.addEventListener('input', () => {
+  clearTimeout(timer);
+  timer = setTimeout(() => tokenize(inp.value), 150);
+});
+
+btnModern.addEventListener('click',  () => switchTo('modern'));
+btnMedline.addEventListener('click', () => switchTo('medline'));
+
+// Boot with ModernBERT
+switchTo('modern');
+</script>
+</body>
+</html>
