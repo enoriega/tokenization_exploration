@@ -75,7 +75,7 @@ def parse_pmc_directory(directory: str | Path) -> Generator[PMCRecord, None, Non
         xml_content = xml_path.read_text() if xml_path.exists() else None
         yield PMCRecord(
             pmcid=metadata.get("pmcid"),
-            version=metadata.get("version"),
+            version=str(v) if (v := metadata.get("version")) is not None else None,
             pmid=metadata.get("pmid"),
             doi=metadata.get("doi"),
             mid=metadata.get("mid"),
