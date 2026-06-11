@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Generator, Literal
 
@@ -44,42 +44,54 @@ def build_pubmed_dataset(*file_paths: str | Path) -> Dataset:
 # PMC (PubMed Central) full articles — JSON metadata + JATS XML
 # ---------------------------------------------------------------------------
 
-# All keys present across PMC Open Access JSON metadata files.
-_PMC_JSON_KEYS = [
-    "pmcid",
-    "version",
-    "pmid",
-    "doi",
-    "mid",
-    "title",
-    "citation",
-    "is_pmc_openaccess",
-    "is_manuscript",
-    "is_historical_ocr",
-    "is_retracted",
-    "license_code",
-    "xml_url",
-    "text_url",
-    "pdf_url",
-    "media_urls",
-]
+@dataclass
+class PMCRecord:
+    pmcid: str | None
+    version: str | None
+    pmid: str | None
+    doi: str | None
+    mid: str | None
+    title: str | None
+    citation: str | None
+    is_pmc_openaccess: bool | None
+    is_manuscript: bool | None
+    is_historical_ocr: bool | None
+    is_retracted: bool | None
+    license_code: str | None
+    xml_url: str | None
+    text_url: str | None
+    pdf_url: str | None
+    media_urls: list | None
+    xml: str | None
 
 
-def parse_pmc_directory(directory: str | Path) -> Generator[dict, None, None]:
-    """Yield one record per article from a directory of paired PMC JSON + XML files.
-
-    Each record contains all JSON metadata fields plus an ``xml`` key holding
-    the raw JATS XML string for the article.
-    """
+def parse_pmc_directory(directory: str | Path) -> Generator[PMCRecord, None, None]:
+    """Yield one PMCRecord per article from a directory of paired PMC JSON + XML files."""
     directory = Path(directory)
     for json_path in directory.glob("*.json"):
         xml_path = json_path.with_suffix(".xml")
         with open(json_path) as fh:
             metadata = json.load(fh)
         xml_content = xml_path.read_text() if xml_path.exists() else None
-        record = {key: metadata.get(key) for key in _PMC_JSON_KEYS}
-        record["xml"] = xml_content
-        yield record
+        yield PMCRecord(
+            pmcid=metadata.get("pmcid"),
+            version=metadata.get("version"),
+            pmid=metadata.get("pmid"),
+            doi=metadata.get("doi"),
+            mid=metadata.get("mid"),
+            title=metadata.get("title"),
+            citation=metadata.get("citation"),
+            is_pmc_openaccess=metadata.get("is_pmc_openaccess"),
+            is_manuscript=metadata.get("is_manuscript"),
+            is_historical_ocr=metadata.get("is_historical_ocr"),
+            is_retracted=metadata.get("is_retracted"),
+            license_code=metadata.get("license_code"),
+            xml_url=metadata.get("xml_url"),
+            text_url=metadata.get("text_url"),
+            pdf_url=metadata.get("pdf_url"),
+            media_urls=metadata.get("media_urls"),
+            xml=xml_content,
+        )
 
 
 def build_pmc_dataset(directory: str | Path) -> Dataset:
@@ -99,7 +111,8 @@ def build_pmc_dataset(directory: str | Path) -> Dataset:
         for paper_dir in directory.glob("PMC*/"):
             pmcid = paper_dir.name.split(".")[0]
             if pmcid not in seen:
-                yield from parse_pmc_directory(paper_dir)
+                for record in parse_pmc_directory(paper_dir):
+                    yield asdict(record)
                 seen.add(pmcid)
 
     return Dataset.from_generator(_records)
