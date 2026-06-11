@@ -5,6 +5,7 @@ from typing import Generator, Literal
 
 import pubmed_parser
 from datasets import Dataset
+from tqdm import tqdm
 
 
 # ---------------------------------------------------------------------------
@@ -81,14 +82,24 @@ def parse_pmc_directory(directory: str | Path) -> Generator[dict, None, None]:
         yield record
 
 
-def build_pmc_dataset(*directories: str | Path) -> Dataset:
-    """Build a HuggingFace Dataset from one or more PMC article directories.
+def build_pmc_dataset(directory: str | Path) -> Dataset:
+    """Build a HuggingFace Dataset from a directory with the same layout as the AWS bucket with PMC articles
 
     Columns mirror the PMC Open Access JSON metadata keys plus an ``xml``
     column containing the raw JATS XML for each article.
     """
+
+    if isinstance(directory, str):
+        directory = Path(directory)
+
     def _records():
-        for directory in directories:
-            yield from parse_pmc_directory(directory)
+        # Some papers have more than one version, in such cases, we want to use one.
+        # This bookkeeping help us jump the duplicates
+        seen = set()
+        for paper_dir in tqdm(directory.glob("PMC*/"), desc="Parsing directories"):
+            pmcid = paper_dir.name.split(".")[0]
+            if pmcid not in seen:
+                yield from parse_pmc_directory(paper_dir)
+                seen.add(pmcid)
 
     return Dataset.from_generator(_records)
