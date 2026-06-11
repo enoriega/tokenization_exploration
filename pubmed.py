@@ -96,7 +96,7 @@ def build_pmc_dataset(directory: str | Path) -> Dataset:
         # Some papers have more than one version, in such cases, we want to use one.
         # This bookkeeping help us jump the duplicates
         seen = set()
-        for paper_dir in tqdm(directory.glob("PMC*/"), desc="Parsing directories"):
+        for paper_dir in directory.glob("PMC*/"):
             pmcid = paper_dir.name.split(".")[0]
             if pmcid not in seen:
                 yield from parse_pmc_directory(paper_dir)
