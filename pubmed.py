@@ -71,8 +71,18 @@ def parse_pmc_directory(directory: str | Path) -> Generator[PMCRecord, None, Non
     for json_path in directory.glob("*.json"):
         xml_path = json_path.with_suffix(".xml")
         with open(json_path) as fh:
-            metadata = json.load(fh)
-        xml_content = xml_path.read_text() if xml_path.exists() else None
+            try:
+                metadata = json.load(fh)
+            except:
+                # To avoid crashing the whole thing if the json is illegal and fails to parse
+                metadata = dict()
+
+        try:
+            xml_content = xml_path.read_text() if xml_path.exists() else None
+        except:
+            # Similarly, fail silently if an xml didn't parse and don't crash the whole thing
+            xml_content = None
+            
         yield PMCRecord(
             pmcid=metadata.get("pmcid"),
             version=str(v) if (v := metadata.get("version")) is not None else None,
