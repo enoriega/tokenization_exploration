@@ -77,6 +77,11 @@ def parse_pmc_directory(directory: str | Path) -> Generator[PMCRecord, None, Non
                 # To avoid crashing the whole thing if the json is illegal and fails to parse
                 metadata = dict()
 
+        # A valid JSON file can still decode to a list/str/number rather than the
+        # object we expect. Guard against that so .get() below never blows up.
+        if not isinstance(metadata, dict):
+            metadata = dict()
+
         try:
             xml_content = xml_path.read_text() if xml_path.exists() else None
         except:
