@@ -7,7 +7,9 @@ requires-python = ">=3.13"
 dependencies = [
     "datasets>=4.8.5",
     "jupyter>=1.1.1",
+    "lxml>=6.1.1",
     "pubmed-parser>=0.5.1",
+    "s3fs>=2026.2.0",
     "tokenizers>=0.22.2",
     "transformers>=5.9.0",
 ]

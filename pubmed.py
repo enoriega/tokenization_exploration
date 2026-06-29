@@ -7,6 +7,8 @@ import pubmed_parser
 from datasets import Dataset
 from tqdm import tqdm
 
+from nxml import extract_text_from_nxml
+
 
 # ---------------------------------------------------------------------------
 # PubMed / MEDLINE abstracts
@@ -131,3 +133,8 @@ def build_pmc_dataset(directory: str | Path) -> Dataset:
                 seen.add(pmcid)
 
     return Dataset.from_generator(_records)
+
+def convert_xml_to_text(dataset:Dataset) -> Dataset:
+    """ Converts the dataset to substitute the xml column with a text version of the same dataset """
+
+    return dataset.map(lambda row: {"text": extract_text_from_nxml(row["xml"])}, remove_columns="xml")
